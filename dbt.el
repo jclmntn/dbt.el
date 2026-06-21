@@ -15,9 +15,11 @@ The prefixes set here are used every time the DBT process is executed as a subpr
   (string-join (append dbtel-global-prefix (flatten-list (list "dbt" args))) " "))
 
 (defun dbtel-debug ()
+  (interactive)
   (compile (dbtel-process-dbt-arguments "debug")))
 
 (defun dbtel-run ()
+  (interactive)
   (compile (dbtel-process-dbt-arguments "run")))
 
 (provide 'dbt.el)
