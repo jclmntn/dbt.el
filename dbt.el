@@ -14,11 +14,15 @@ The prefixes set here are used every time the DBT process is executed as a subpr
   "Prepares DBT arguments to spawn a process."
   (string-join (append dbtel-global-prefix (flatten-list (list "dbt" args))) " "))
 
+;;;###autoload
 (defun dbtel-debug ()
+  "Runs dbt debug in a compilation buffer. Uses `dbtel-global-prefix' if available."
   (interactive)
   (compile (dbtel-process-dbt-arguments "debug")))
 
+;;;###autoload
 (defun dbtel-run ()
+  "Runs dbt run in a compilation buffer. Uses `dbtel-global-prefix' if available."
   (interactive)
   (compile (dbtel-process-dbt-arguments "run")))
 
