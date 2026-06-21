@@ -26,4 +26,10 @@ The prefixes set here are used every time the DBT process is executed as a subpr
   (interactive)
   (compile (dbtel-process-dbt-arguments "run")))
 
+;; Keybindings
+(defvar-keymap dbtel-map
+    :doc "Keymap for dbt.el"
+    "SPC d d" #'dbtel-debug
+    "SPC d r" #'dbtel-run)
+
 (provide 'dbt.el)
