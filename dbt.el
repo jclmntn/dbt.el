@@ -15,10 +15,9 @@ The prefixes set here are used every time the DBT process is executed as a subpr
   (string-join (append dbtel-global-prefix (flatten-list (list "dbt" args))) " "))
 
 (defun dbtel-debug ()
-  (dbtel-process-dbt-arguments "debug"))
+  (compile (dbtel-process-dbt-arguments "debug")))
 
 (defun dbtel-run ()
-  (dbtel-process-dbt-arguments "run"))
+  (compile (dbtel-process-dbt-arguments "run")))
 
-;; Testano
 (provide 'dbt.el)
