@@ -1,3 +1,7 @@
+;; Dependencies
+(require 'transient)
+
+;; Custom Variables
 (defcustom dbtel-global-prefix
   `("")
   "Global DBT prefixes.
@@ -6,6 +10,7 @@ The prefixes set here are used every time the DBT process is executed as a subpr
   :package-version '(dbtel . "0.1.0")
   :group 'dbtel-commands)
 
+;; Functions
 (defun dbtel--project-directory ()
   "Returns the name of the directory it it detecs a dbt_project.yml file."
     (locate-dominating-file default-directory "dbt_project.yml"))
@@ -26,10 +31,10 @@ The prefixes set here are used every time the DBT process is executed as a subpr
   (interactive)
   (compile (dbtel-process-dbt-arguments "run")))
 
-;; Keybindings
-(defvar-keymap dbtel-map
-    :doc "Keymap for dbt.el"
-    "SPC d d" #'dbtel-debug
-    "SPC d r" #'dbtel-run)
+(transient-define-prefix dbtel-menu ()
+  "Transient Menu for DBT"
+  ["Commands"
+   ("d" "debug" dbtel-debug)
+   ("r" "run" dbtel-run)])
 
 (provide 'dbt.el)
