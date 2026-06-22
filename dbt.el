@@ -23,13 +23,17 @@ The prefixes set here are used every time the DBT process is executed as a subpr
 (defun dbtel-debug ()
   "Runs dbt debug in a compilation buffer. Uses `dbtel-global-prefix' if available."
   (interactive)
-  (compile (dbtel-process-dbt-arguments "debug")))
+  (when (dbtel--project-directory)
+    (let ((default-directory (dbtel--project-directory)))
+      (compile (dbtel-process-dbt-arguments "debug")))))
 
 ;;;###autoload
 (defun dbtel-run ()
   "Runs dbt run in a compilation buffer. Uses `dbtel-global-prefix' if available."
   (interactive)
-  (compile (dbtel-process-dbt-arguments "run")))
+  (when (dbtel--project-directory)
+    (let ((default-directory (dbtel--project-directory)))
+      (compile (dbtel-process-dbt-arguments "run")))))
 
 (transient-define-prefix dbtel-menu ()
   "Transient Menu for DBT"
