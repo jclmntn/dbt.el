@@ -1,0 +1,30 @@
+* A DBT porcelain in Emacs
+dbt.el is a package which creates simple "porcelain" commands to be used within Emacs. This means
+you don't have to type commands such as =dbt run= or =dbt debug=. Everything can be easily acessed
+with a few keystrokes, due to the implemented transient menu.
+
+* Features
+- =dbtel-menu=: a transient menu for running commands in a dbt project
+- =dbtel-run=: a command for running =dbt run= in a dbt project, this spawns a compilation buffer.
+- =dbtel-debug=: a command for running =dbt debug= in a dbt project, this spawns a compilation buffer.
+
+* Future Features
+- Run specific models with =-s= flag, and models that are upstream or downstream.
+- Run model at buffer.
+- Easier debugging with compilation buffer (jumping at errors).
+
+* Installing
+#+begin_src elisp
+(use-package dbt.el
+  :vc (:url "https://github.com/jclmntn/dbt.el.git")
+  :custom (dbtel-global-prefix '("uv" "run")))
+#+end_src
+
+* Behaviour
+** Where does a command like =dbtel-run= run?
+dbt.el looks for a =dbt_project.yml= file to determine if Emacs is within a dbt project. If such file exists, using dbt.el commands will open compilation buffers at the dbt project root.
+
+One could override this behaviour with a custom variable, which will be implemented eventually.
+
+** Can I use this with a package manager such as =poetry= or =uv=?
+The custom variable =dbtel-global-prefix= can be modified by the user such that package managers or command runners can be set as prefixes to =dbt= commands. Take a look at the [[*Installing]] section to see how this package can be configured. 
