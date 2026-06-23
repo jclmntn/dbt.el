@@ -158,7 +158,7 @@ and nested repository copies under DBT-Analytics/."
   ["Commands"
    ("d" "debug" dbtel-debug)
    ("r" "run" dbtel-run)
-   ("gt" "go to" dbtel-goto)])
+   ("g" "go to" dbtel-goto)])
 
 (transient-define-prefix dbtel-goto ()
   "Goes to node of `relationship'. Pops up a list of candidates based on the project configuration."
