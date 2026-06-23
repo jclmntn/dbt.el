@@ -26,7 +26,7 @@ subprocess. This is useful for DBT projects which use tools like poetry or uv."
   (cdr project))
 
 (cl-defmethod project-files ((project (head dbt-project)) &optional dirs)
-  (if-let ((vc-proj (project-try-vc (cdr-project))))
+  (if-let ((vc-proj (project-try-vc (cdr project))))
       (project-files vc-proj dirs)
     (cl-call-next-method)))
 
