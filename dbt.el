@@ -166,7 +166,7 @@ or sits outside the current DBT project."
         (setq cleaned-args (append cleaned-args (list "-s" qualified-model)))))
     (string-join (append (dbtel--global-prefix) (cons "dbt" cleaned-args)) " ")))
 
-(defun dbtel--get-model-list (args)
+(defun dbtel--get-model-list ()
   "Lists DBT models. Uses `dbtel-global-prefix-option'."
   (when-let* ((proj (project-current))
               (all-files (project-files proj))
@@ -203,7 +203,7 @@ or sits outside the current DBT project."
 
 (defun dbtel-run-prompted (args)
   "Prompts for a DBT model name and runs it ."
-  (interactive (list (transient-args 'dbtel-transient-run)))
+  (interactive (list (transient-args 'dbtel-run-dispatch)))
   (let ((model (completing-read "Select DBT Model: " (dbtel--get-model-list))))
     (dbtel--compile "run" args :model model)))
 
