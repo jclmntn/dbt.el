@@ -33,7 +33,7 @@ subprocess. This is useful for DBT projects which use tools like poetry or uv."
 
 (defun dbtel--global-prefix ()
   "Returns the user override or an empty string."
-  (or dbtel-glboal-prefix-option ""))
+  (or dbtel-global-prefix-option ""))
 
 (defun dbtel--get-model-name ()
   "Return the DBT model name for the current buffer (filename without extension)."
@@ -60,10 +60,10 @@ subprocess. This is useful for DBT projects which use tools like poetry or uv."
         (while (re-search-forward regexp nil t) (push (match-string 1) matches)))
       (seq-map (lambda (x) (concat x ".sql")) (nreverse matches))))
 
-(defun dbtel--open-candidates (candidates empty-message)
+(defun dbtel--open-candidates (candidates empty-list)
   "Opens CANDIDATES with `project-find-file', or show EMPTY-MESSAGE if none."
   (if (null candidates)
-      (message "%s" empty-message)
+      (message "parsed parents %s, but couldn't find them on disk." empty-list)
     (let ((original (symbol-function 'project-files)))
       (unwind-protect
           (progn
@@ -92,22 +92,22 @@ subprocess. This is useful for DBT projects which use tools like poetry or uv."
                           (project-files project))))
         (dbtel--open-candidates
          candidates
-         (format "parsed parents %s, but couldn't find them on disk." parent-names))))))
+         parent-names)))))
 
 (defun dbtel-list-children ()
-  "List children of the current file, filtering out build artifacts and repo noise."
+  "List children of the current DBT node."
   (interactive)
   (let* ((project  (or (project-current t) (user-error "Not in a project")))
          (root     (project-root project))
          (children (dbtel--get-model-children (project-files project)))
          (candidates (seq-filter
-                      (lambda (file) (not (dbtel---artifact-p file root)))
+                      (lambda (file) (not (dbtel--artifact-p file root)))
                       children)))
     (dbtel--open-candidates
          candidates
-         (format "parsed parents %s, but couldn't find them on disk." (dbtel--get-model-name)))))
+         (dbtel--get-model-name))))
 
-(defun dbtel---artifact-p (file root)
+(defun dbtel--artifact-p (file root)
   "Returns non-nil if FILE is a build artifact or nested repo copy."
   (let ((rel-path (file-relative-name file root))
         (root-name (file-name-nondirectory (directory-file-name root))))
@@ -121,29 +121,30 @@ and nested repository copies under DBT-Analytics/."
   (let ((rel-path (file-relative-name file root))
         (root-name (file-name-nondirectory (directory-file-name root))))
     (and (member (file-name-nondirectory file) parent-names)
-         (not (dbtel---artifact-p file root)))))
+         (not (dbtel--artifact-p file root)))))
 
 (defun dbtel-process-dbt-arguments (&rest args)
   "Prepares DBT arguments to spawn a process."
-  (string-join (append dbtel--global-prefix (flatten-list (list "dbt" args))) " "))
+  (string-join (append (dbtel--global-prefix) (flatten-list (list "dbt" args))) " "))
+
+(defun dbtel--compile (command &rest args)
+  "Runs COMMAND in a compilation buffer."
+  (let ((marker (dbtel--project-marker default-directory)))
+    (when marker
+    (let ((default-directory (cdr marker)))
+      (compile (dbtel-process-dbt-arguments (list command args)))))))
 
 ;;;###autoload
-(defun dbtel-debug ()
-  "Runs dbt debug in a compilation buffer. Uses `dbtel--global-prefix' if any was defined by user
-using `dbtel-global-prefix-option'."
+(defun dbtel-debug (&rest args)
+  "Runs 'dbt debug' in a compilation buffer. Uses `dbtel-global-prefix-option'."
   (interactive)
-  (when (dbtel--project-directory)
-    (let ((default-directory (dbtel--project-directory)))
-      (compile (dbtel-process-dbt-arguments "debug")))))
+  (dbtel--compile "debug" args))
 
 ;;;###autoload
 (defun dbtel-run ()
-  "Runs dbt run in a compilation buffer. Uses `dbtel--global-prefix' if any was defined by user
-using `dbtel-global-prefix-option'."
+  "Runs 'dbt run' in a compilation buffer. Uses `dbtel-global-prefix-option'."
   (interactive)
-  (when (dbtel--project-directory)
-    (let ((default-directory (dbtel--project-directory)))
-      (compile (dbtel-process-dbt-arguments "run")))))
+  (dbtel--compile ("run" args)))
 
 (transient-define-prefix dbtel-dispatch ()
   "Transient Menu for DBT"
