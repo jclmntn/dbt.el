@@ -30,6 +30,7 @@ subprocess. This is useful for DBT projects which use tools like poetry or uv."
       (project-files vc-proj dirs)
     (cl-call-next-method)))
 
+;; TODO: Since we have overridden project-files, project-ignores is redundant. Check that.
 (cl-defmethod project-ignores ((project (head dbt-project)) _dir)
   '("dbt_packages/" "logs/" ".venv/" ".git/" "target"))
 
@@ -130,16 +131,57 @@ and nested repository copies under DBT-Analytics/."
     (and (member (file-name-nondirectory file) parent-names)
          (not (dbtel--artifact-p file root)))))
 
-(defun dbtel-process-dbt-arguments (&rest args)
+(defun dbtel--current-model-name ()
+  "Return the DBT model name if the current buffer is a valid project SQL file.
+Returns nil if the buffer is not visiting a file, is not a SQL file,
+or sits outside the current DBT project."
+  (let ((file (buffer-file-name)))
+    (when (and file 
+               (string= (file-name-extension file) "sql")
+               (dbtel--project-marker default-directory))
+      (file-name-base file))))
+
+(defun dbtel--process-dbt-arguments (&rest args)
   "Prepares DBT arguments to spawn a process."
-  (string-join (append (dbtel--global-prefix) (flatten-list (list "dbt" args))) " "))
+  (let* ((flat-args (flatten-list args))
+         (upstream (member "--upstream" flat-args))
+         (downstream (member "--downstream" flat-args))
+         model
+         cleaned-args)
+    (while flat-args
+      (let ((item (pop flat-args)))
+        (cond
+         ((eq item :model)
+          (setq model (pop flat-args)))
+         ((member item '("--upstream" "--downstream"))
+          nil)
+         (t
+          (push item cleaned-args)))))
+    (setq cleaned-args (nreverse cleaned-args))
+
+    (when model
+      (let ((qualified-model (concat (when upstream "+")
+                                     model
+                                     (when downstream "+"))))
+        (setq cleaned-args (append cleaned-args (list "-s" qualified-model)))))
+    (string-join (append (dbtel--global-prefix) (cons "dbt" cleaned-args)) " ")))
+
+(defun dbtel--get-model-list (args)
+  "Lists DBT models. Uses `dbtel-global-prefix-option'."
+  (when-let* ((proj (project-current))
+              (all-files (project-files proj))
+              (root (project-root proj))
+              (models-dir (expand-file-name "models/" root)))
+    (seq-keep (lambda (file) (when (and (string= (file-name-extension file) "sql")
+                                        (file-in-directory-p file models-dir))
+                               (file-name-base file))) all-files)))
 
 (defun dbtel--compile (command &rest args)
   "Runs COMMAND in a compilation buffer."
   (let ((marker (dbtel--project-marker default-directory)))
     (when marker
     (let ((default-directory (cdr marker)))
-      (compile (dbtel-process-dbt-arguments (list command args)))))))
+      (compile (dbtel--process-dbt-arguments (list command args)))))))
 
 ;;;###autoload
 (defun dbtel-debug (&rest args)
@@ -148,22 +190,47 @@ and nested repository copies under DBT-Analytics/."
   (dbtel--compile "debug" args))
 
 ;;;###autoload
-(defun dbtel-run ()
-  "Runs 'dbt run' in a compilation buffer. Uses `dbtel-global-prefix-option'."
-  (interactive)
-  (dbtel--compile ("run" args)))
+(defun dbtel-run-all (args)
+  "Runs the entire project in a compilation buffer using 'dbt run'. Uses `dbtel-global-prefix-option'."
+  (interactive (list (transient-args 'dbtel-run-dispatch)))
+  (dbtel--compile "run" args))
 
-(transient-define-prefix dbtel-dispatch ()
-  "Transient Menu for DBT"
-  ["Commands"
-   ("d" "debug" dbtel-debug)
-   ("r" "run" dbtel-run)
-   ("g" "go to" dbtel-goto)])
+(defun dbtel-run-this-model (args)
+  "Runs the model on the current buffer file in a compilation buffer using 'dbt run'. Uses `dbtel-global-prefix-option'."
+  (interactive (list (transient-args 'dbtel-run-dispatch)))
+  (if-let ((model (dbtel--current-model-name))) (dbtel--compile "run" args :model model)
+    (user-error "Current buffer is not a valid DBT model file")))
+
+(defun dbtel-run-prompted (args)
+  "Prompts for a DBT model name and runs it ."
+  (interactive (list (transient-args 'dbtel-transient-run)))
+  (let ((model (completing-read "Select DBT Model: " (dbtel--get-model-list))))
+    (dbtel--compile "run" args :model model)))
 
 (transient-define-prefix dbtel-goto ()
   "Goes to node of `relationship'. Pops up a list of candidates based on the project configuration."
   ["Node type"
    ("p" "parent" dbtel-list-parents)
    ("c" "child" dbtel-list-children)])
+
+(transient-define-prefix dbtel-run-dispatch ()
+  "Transient menu for running DBT models."
+  ["Arguments & Modifiers"
+   ("-F" "Full refresh" "--full-refresh")
+   ("-u" "Include Upstream" "--upstream")
+   ("-d" "Include Downstream" "--downstream")]
+  ["Commands"
+   ("a" "Run entire project" dbtel-run-all)
+   ("t" "Run this model" dbtel-run-this-model)
+   ("p" "Run prompted model" dbtel-run-prompted)])
+
+(transient-define-prefix dbtel-dispatch ()
+  "Transient Menu for DBT"
+  ["Commands"
+   ("d" "debug" dbtel-debug)
+   ("r" "run" dbtel-run-dispatch)
+   ("g" "go to" dbtel-goto)])
+
+
 
 (provide 'dbt.el)
