@@ -25,6 +25,11 @@ subprocess. This is useful for DBT projects which use tools like poetry or uv."
   "Extract the root path from a project matching 'dbt-project'."
   (cdr project))
 
+(cl-defmethod project-files ((project (head dbt-project)) &optional dirs)
+  (if-let ((vc-proj (project-try-vc (cdr-project))))
+      (project-files vc-proj dirs)
+    (cl-call-next-method)))
+
 (cl-defmethod project-ignores ((project (head dbt-project)) _dir)
   '("dbt_packages/" "logs/" ".venv/" ".git/" "target"))
 
@@ -49,17 +54,6 @@ subprocess. This is useful for DBT projects which use tools like poetry or uv."
       (insert-file-contents file)
       (re-search-forward regexp nil t))))
 
-(defun dbtel--get-model-parents ()
-  "Collects in a list all the parents of a DBT model."
-    (let ((str (buffer-substring-no-properties (point-min) (point-max)))
-        (regexp "ref([[:space:]]*['\"]\\([^'\"]+\\)['\"][[:space:]]*)")
-        matches)
-      (with-temp-buffer
-        (insert str)
-        (goto-char (point-min))
-        (while (re-search-forward regexp nil t) (push (match-string 1) matches)))
-      (seq-map (lambda (x) (concat x ".sql")) (nreverse matches))))
-
 (defun dbtel--open-candidates (candidates empty-list)
   "Opens CANDIDATES with `project-find-file', or show EMPTY-MESSAGE if none."
   (if (null candidates)
@@ -71,12 +65,17 @@ subprocess. This is useful for DBT projects which use tools like poetry or uv."
             (call-interactively #'project-find-file))
         (fset 'project-files original)))))
 
-(defun dbtel--get-model-children (project-files)
-  "Return the subset of PROJECT-FILES that ref the current buffer's model."
-  (let ((model-name (dbtel--get-model-name)))
-    (seq-filter
-     (lambda (file) (dbtel--file-refs-model-p file model-name))
-     project-files)))
+;; Parent node functions
+(defun dbtel--get-model-parents ()
+  "Collects in a list all the parents of a DBT model."
+    (let ((str (buffer-substring-no-properties (point-min) (point-max)))
+        (regexp "ref([[:space:]]*['\"]\\([^'\"]+\\)['\"][[:space:]]*)")
+        matches)
+      (with-temp-buffer
+        (insert str)
+        (goto-char (point-min))
+        (while (re-search-forward regexp nil t) (push (match-string 1) matches)))
+      (seq-map (lambda (x) (concat x ".sql")) (nreverse matches))))
 
 (defun dbtel-list-parents ()
   "Lists parents for the current DBT node."
@@ -93,6 +92,14 @@ subprocess. This is useful for DBT projects which use tools like poetry or uv."
         (dbtel--open-candidates
          candidates
          parent-names)))))
+
+;; Child node functions
+(defun dbtel--get-model-children (project-files)
+  "Return the subset of PROJECT-FILES that ref the current buffer's model."
+  (let ((model-name (dbtel--get-model-name)))
+    (seq-filter
+     (lambda (file) (dbtel--file-refs-model-p file model-name))
+     project-files)))
 
 (defun dbtel-list-children ()
   "List children of the current DBT node."
